@@ -1,0 +1,21 @@
+[project]
+name = "vibmcp"
+version = "0.1.0"
+description = "工业振动信号诊断 MCP Server —— 让任意 LLM Agent 具备轴承故障诊断能力"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0",
+    "numpy",
+    "scipy",
+    "matplotlib",
+]
+
+[project.scripts]
+vibmcp = "vibmcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
