@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 证据融合诊断引擎
 ================
@@ -12,25 +11,32 @@
 输出保留完整证据链(各谐波 prominence 明细), 让 LLM 能向用户解释"为什么"。
 这是和黑盒分类器的核心差异 —— 每个结论都能溯源到谱上具体频带。
 """
+
 import numpy as np
 
 from .analysis import envelope_spectrum, family_prominence, sideband_prominence, time_stats
-from .bearing import char_freqs, FAULTS
+from .bearing import FAULTS, char_freqs
 
 # prominence 分数阈值(Σ max(p_k-1,0), 经合成信号标定):
 # 1/ln2 背景修正后正常信号 <0.15, 明确故障时主嫌 >0.3 —— 中间地带为可疑
-SCORE_NORMAL = 0.2      # 低于此值 → 无故障证据
-SCORE_STRONG = 1.5      # 高于此值 → 强证据
-W_FAMILY = 1.0          # 谐波族 prominence 权重
-W_SIDEBAND = 0.5        # 边带证据权重(仅对 BPFI 生效)
-W_KURTOSIS = 0.3        # 峭度权重(时域辅证)
+SCORE_NORMAL = 0.2  # 低于此值 → 无故障证据
+SCORE_STRONG = 1.5  # 高于此值 → 强证据
+W_FAMILY = 1.0  # 谐波族 prominence 权重
+W_SIDEBAND = 0.5  # 边带证据权重(仅对 BPFI 生效)
+W_KURTOSIS = 0.3  # 峭度权重(时域辅证)
 
 
-def diagnose(x: np.ndarray, fs: float, fr: float,
-             machine: str = "cwru", nfft: int = 8192,
-             band: tuple | None = (2500.0, 3500.0),
-             Z: int | None = None, d: float | None = None,
-             D: float | None = None) -> dict:
+def diagnose(
+    x: np.ndarray,
+    fs: float,
+    fr: float,
+    machine: str = "cwru",
+    nfft: int = 8192,
+    band: tuple | None = (2500.0, 3500.0),
+    Z: int | None = None,
+    d: float | None = None,
+    D: float | None = None,
+) -> dict:
     """主诊断入口。返回含证据链与置信度的结构化结论。
 
     band: 包络解调前的共振带通(Hz), 默认 2.5~3.5kHz;
@@ -38,15 +44,20 @@ def diagnose(x: np.ndarray, fs: float, fr: float,
     """
     freqs, sp = envelope_spectrum(x, fs, nfft, bandpass=band)
     ts = time_stats(x)
-    return diagnose_from_spectrum(freqs, sp, fr, machine=machine,
-                                  time_stats_=ts, Z=Z, d=d, D=D)
+    return diagnose_from_spectrum(freqs, sp, fr, machine=machine, time_stats_=ts, Z=Z, d=d, D=D)
 
 
-def diagnose_from_spectrum(freqs: np.ndarray, sp: np.ndarray, fr: float,
-                           machine: str = "cwru", time_stats_: dict | None = None,
-                           bg_corr: float | str = 1.4427,
-                           Z: int | None = None, d: float | None = None,
-                           D: float | None = None) -> dict:
+def diagnose_from_spectrum(
+    freqs: np.ndarray,
+    sp: np.ndarray,
+    fr: float,
+    machine: str = "cwru",
+    time_stats_: dict | None = None,
+    bg_corr: float | str = 1.4427,
+    Z: int | None = None,
+    d: float | None = None,
+    D: float | None = None,
+) -> dict:
     """从(可能已分段平均的)包络谱直接出诊断 —— harness 的 Welch 平均路径复用此入口。"""
     cf = char_freqs(machine=machine, fr=fr, Z=Z, d=d, D=D)
     ts = time_stats_ or {"kurtosis": 0.0}
@@ -56,9 +67,11 @@ def diagnose_from_spectrum(freqs: np.ndarray, sp: np.ndarray, fr: float,
         coef = cf[fault]["coef"]
         fam = family_prominence(freqs, sp, coef, fr, bg_corr=bg_corr)
         s = W_FAMILY * fam["score"]
-        detail = {"family_score": round(fam["score"], 3),
-                  "prominence": fam["prom"],
-                  "char_freq_hz": round(coef * fr, 2)}
+        detail = {
+            "family_score": round(fam["score"], 3),
+            "prominence": fam["prom"],
+            "char_freq_hz": round(coef * fr, 2),
+        }
         if fault == "BPFI":
             sb = sideband_prominence(freqs, sp, coef, fr, bg_corr=bg_corr)
             s += W_SIDEBAND * sb["score"]
@@ -80,11 +93,13 @@ def diagnose_from_spectrum(freqs: np.ndarray, sp: np.ndarray, fr: float,
         confidence = round(min(0.99, 0.5 * strength + 0.5 * margin), 2)
 
     return {
-        "verdict": verdict,                    # normal / BPFI / BPFO / BSF / FTF
+        "verdict": verdict,  # normal / BPFI / BPFO / BSF / FTF
         "confidence": confidence,
         "runner_up": {"fault": second[0], "score": round(second[1], 3)},
-        "char_freqs": {f: {"hz": round(cf[f]["coef"] * fr, 2),
-                           "coef_x_fr": round(cf[f]["coef"], 3)} for f in FAULTS},
+        "char_freqs": {
+            f: {"hz": round(cf[f]["coef"] * fr, 2), "coef_x_fr": round(cf[f]["coef"], 3)}
+            for f in FAULTS
+        },
         "evidence": evidence,
         "time_stats": ts,
         "geometry": cf["_geo"],
@@ -101,7 +116,9 @@ def _notes(verdict: str, score: float, ts: dict) -> list[str]:
     else:
         label = {"BPFI": "内圈", "BPFO": "外圈", "BSF": "滚动体", "FTF": "保持架"}[verdict]
         lv = "强" if score >= SCORE_STRONG else "弱"
-        out.append(f"包络谱在{label}故障特征频率谐波族检测到{lv}证据 (prominence 得分 {score:.2f})。")
+        out.append(
+            f"包络谱在{label}故障特征频率谐波族检测到{lv}证据 (prominence 得分 {score:.2f})。"
+        )
     if ts["kurtosis"] > 4:
         out.append(f"峭度 {ts['kurtosis']} (>4) 表明波形存在显著冲击成分, 与调制型故障一致。")
     elif verdict != "normal":

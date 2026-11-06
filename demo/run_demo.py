@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 一键演示: 不经过 MCP, 直接调用工具函数跑完整流程
 =================================================
@@ -7,8 +6,8 @@
 ③ 生成 HTML 报告到 output/
 MCP 全流程演示(接入 Claude Code/Cursor)见 README。
 """
+
 import io
-import json
 import os
 import sys
 
@@ -39,18 +38,26 @@ def main():
         n_base += base["verdict"] == gt
         n_h += hr["verdict"] == gt
         n_all += 1
-        mark = lambda v: "✓" if v == gt else "✗"
-        print(f"\n真值 {gt or 'normal'}: 基线 {base['verdict']}({base['confidence']:.0%}) {mark(base['verdict'])}"
-              f"  →  harness {hr['verdict']}({hr['confidence']:.0%}) {mark(hr['verdict'])}"
-              f"  [{hr['steps']}步, 升级={hr['escalated']}]")
+        b_ok = "✓" if base["verdict"] == gt else "✗"
+        h_ok = "✓" if hr["verdict"] == gt else "✗"
+        print(
+            f"\n真值 {gt or 'normal'}: "
+            f"基线 {base['verdict']}({base['confidence']:.0%}) {b_ok}"
+            f"  →  harness {hr['verdict']}({hr['confidence']:.0%}) {h_ok}"
+            f"  [{hr['steps']}步, 升级={hr['escalated']}]"
+        )
         if hr["escalated"]:
             for st in hr["trace"]:
                 print(f"    · {st['step']}: {st['action']}")
                 if st.get("decision"):
                     print(f"      ↳ {st['decision']}")
-        p = save_report(base, waveform_envelope(x, meta["fs"]),
-                        spectrum_plot(x, meta["fs"], meta["fr"], verdict=base["verdict"]),
-                        meta, OUT)
+        p = save_report(
+            base,
+            waveform_envelope(x, meta["fs"]),
+            spectrum_plot(x, meta["fs"], meta["fr"], verdict=base["verdict"]),
+            meta,
+            OUT,
+        )
         reports.append(p)
     print("-" * 66)
     print(f"基线 {n_base}/{n_all}  harness {n_h}/{n_all}  (更多档位对照: server.compare_harness)")
