@@ -57,10 +57,10 @@ def synth_signal(
             burst = amp * np.exp(-tt / TAU) * np.sin(2 * np.pi * RESONANCE_HZ * tt)
             x[idx0 : idx0 + m] += burst
 
-    # 加噪到指定 SNR
+    # 加噪到指定 SNR（原地累加：保持 x 的 ndarray 形状参数化不变，避免新版 mypy 重赋值报错）
     psig = np.mean(x**2) + 1e-12
     pnoise = psig / (10 ** (snr_db / 10))
-    x = x + rng.normal(0, np.sqrt(pnoise), n)
+    x += rng.normal(0, np.sqrt(pnoise), n)
 
     meta = {
         "fs": fs,
