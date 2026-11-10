@@ -305,7 +305,7 @@ def synth_signal_tool(
 @_toollog
 def run_evaluation(n_per_class: int = 5, snr_db: float = 0.0, machine: str = "cwru") -> str:
     """批量合成信号诊断评测: 每类(含 normal) n 条, 输出混淆计数与准确率。
-    用于验证诊断引擎、生成简历指标数字。"""
+    用于验证诊断引擎、生成评测数字。"""
     from collections import Counter
 
     confusion: dict[str, Counter] = {}
